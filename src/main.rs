@@ -90,8 +90,8 @@ impl Trie {
             return None;
         }
 
-        // let mut result: Vec<String> = Vec::new();
-        let mut result: BinaryHeap<&TrieNode> = BinaryHeap::new();
+        let mut result: Vec<String> = Vec::new();
+        // let mut found_nodes: BinaryHeap<&TrieNode> = BinaryHeap::new();
 
         let mut heap: BinaryHeap<&TrieNode> = initial_children
             .unwrap()
@@ -101,8 +101,11 @@ impl Trie {
 
         while let Some(next_node) = heap.pop() {
             // TODO: push TrieNode or String?
-            if let TrieNodeType::Final(_) = &next_node.node_type {
-                result.push(next_node);
+            // if let TrieNodeType::Final(_) = &next_node.node_type {
+            //     found_nodes.push(next_node);
+            // }
+            if let TrieNodeType::Final(word) = &next_node.node_type {
+                result.push(word.to_string());
             }
 
             for (_, v) in next_node.children.iter() {
@@ -110,15 +113,15 @@ impl Trie {
             }
         }
 
-        let mut actual_result: Vec<String> = Vec::new();
+        // let mut result: Vec<String> = Vec::new();
 
-        while let Some(next_node) = result.pop() {
-            if let TrieNodeType::Final(word) = &next_node.node_type {
-                actual_result.push(word.to_string());
-            }
-        }
+        // while let Some(next_node) = found_nodes.pop() {
+        //     if let TrieNodeType::Final(word) = &next_node.node_type {
+        //         result.push(word.to_string());
+        //     }
+        // }
 
-        Some(actual_result)
+        Some(result)
     }
 
     fn insert(&mut self, word: String) {
