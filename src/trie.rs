@@ -111,6 +111,9 @@ impl Trie {
             }
         }
 
+        // NOTE: It's a bit convoluted to turn a `BinaryHeap` into a `Vec` with the values in heap
+        // order. `BinaryHeap.into_iter_sorted` will do what we need, but it is not yet stable (see
+        // https://github.com/rust-lang/rust/issues/59278).
         let result: Vec<String> = found_nodes
             .into_sorted_vec()
             .iter()
