@@ -1,10 +1,13 @@
-use std::collections::HashMap;
+use std::cmp::Ordering;
+use std::collections::{HashMap, BinaryHeap};
 
+#[derive(Clone, Eq, PartialEq)]
 enum TrieNodeType {
     Final(String),
     Intermediate,
 }
 
+#[derive(Clone, Eq, PartialEq)]
 struct TrieNode {
     children: HashMap<char, TrieNode>,
     node_type: TrieNodeType,
@@ -18,6 +21,18 @@ impl TrieNode {
             node_type: TrieNodeType::Intermediate,
             score: 0,
         }
+    }
+}
+
+impl Ord for TrieNode {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.score.cmp(&other.score)
+    }
+}
+
+impl PartialOrd for TrieNode {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -55,6 +70,55 @@ impl Trie {
             }
         }
         Some(current_node)
+    }
+
+    fn get_ranked_results(&mut self, prefix: String) -> Option<Vec<String>> {
+        // TODO: Is this ok?
+        let furthest_node = self._search(&prefix);
+
+        let initial_children = match furthest_node {
+            Some(
+                TrieNode {
+                    children: local_children,
+                    node_type: _,
+                    score: _,
+                }) => Some(local_children),
+            _ => None,
+        };
+
+        if initial_children == None {
+            return None;
+        }
+
+        // let mut result: Vec<String> = Vec::new();
+        let mut result: BinaryHeap<&TrieNode> = BinaryHeap::new();
+
+        let mut heap: BinaryHeap<&TrieNode> = initial_children
+            .unwrap()
+            .iter()
+            .map(|(_, v)| v)
+            .collect();
+
+        while let Some(next_node) = heap.pop() {
+            // TODO: push TrieNode or String?
+            if let TrieNodeType::Final(_) = &next_node.node_type {
+                result.push(next_node);
+            }
+
+            for (_, v) in next_node.children.iter() {
+                heap.push(v);
+            }
+        }
+
+        let mut actual_result: Vec<String> = Vec::new();
+
+        while let Some(next_node) = result.pop() {
+            if let TrieNodeType::Final(word) = &next_node.node_type {
+                actual_result.push(word.to_string());
+            }
+        }
+
+        Some(actual_result)
     }
 
     fn insert(&mut self, word: String) {
@@ -160,23 +224,18 @@ mod tests {
 fn main() {
     let mut trie = Trie::new();
 
-    trie.insert("Foo".to_string());
-    trie.insert("For".to_string());
-    trie.insert("Bar".to_string());
-    trie.insert("Baz".to_string());
+    trie.insert_with_score("Foo".to_string(), 100);
+    trie.insert_with_score("For".to_string(), 10);
+    trie.insert_with_score("Foreign".to_string(), 8);
+    trie.insert_with_score("Bar".to_string(), 0);
+    trie.insert_with_score("Baz".to_string(), 0);
 
-    match trie.search("For".to_string()) {
-        Some(result) => println!("Found {}", result),
-        None => println!("Search failed"),
+    let ranked_results = trie.get_ranked_results("Fo".to_string());
+
+    for result in ranked_results.unwrap().iter() {
+        println!("{}", result);
     }
 
-    match trie.search("Banana".to_string()) {
-        Some(result) => println!("Found {}", result),
-        None => println!("Search failed"),
-    }
 
-    match trie.starts_with("Ca".to_string()) {
-        Some(result) => println!("Found {} as prefix", result),
-        None => println!("Prefix search failed"),
-    }
+
 }
