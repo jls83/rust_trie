@@ -54,17 +54,16 @@ pub struct Trie {
 
 impl Trie {
     pub fn new() -> Self {
-        Trie { root: TrieNode::new() }
+        Trie {
+            root: TrieNode::new(),
+        }
     }
 
     fn _insert(&mut self, word: String, score: i64) {
         let mut current_node = &mut self.root;
 
         for char in word.chars() {
-            let mut next_node = current_node
-                .children
-                .entry(char)
-                .or_insert(TrieNode::new());
+            let mut next_node = current_node.children.entry(char).or_insert(TrieNode::new());
             next_node.aggregate_score += score;
             current_node = next_node;
         }
@@ -89,7 +88,10 @@ impl Trie {
 
     pub fn get_ranked_results(&mut self, prefix: String) -> Option<Vec<String>> {
         let initial_children = match self._search(&prefix) {
-            Some(TrieNode { children: local_children, .. }) => local_children,
+            Some(TrieNode {
+                children: local_children,
+                ..
+            }) => local_children,
             _ => return None,
         };
 
@@ -98,10 +100,7 @@ impl Trie {
         let mut found_nodes: BinaryHeap<&TrieNode> = BinaryHeap::new();
 
         // TODO: Can we switch this to a `VecDeque` for any kind of savings?
-        let mut heap: BinaryHeap<&TrieNode> = initial_children
-            .iter()
-            .map(|(_, v)| v)
-            .collect();
+        let mut heap: BinaryHeap<&TrieNode> = initial_children.iter().map(|(_, v)| v).collect();
 
         while let Some(next_node) = heap.pop() {
             if let TrieNodeType::Final(_) = &next_node.node_type {
@@ -118,7 +117,7 @@ impl Trie {
             .rev()
             .filter_map(|node| match &node.node_type {
                 TrieNodeType::Final(word) => Some(word.to_string()),
-                _ => None
+                _ => None,
             })
             .collect();
 
@@ -133,12 +132,13 @@ impl Trie {
         self._insert(word, score);
     }
 
-
     pub fn search(&mut self, word: String) -> Option<String> {
         match self._search(&word) {
             // TODO: I don't love the `to_string` call here.
-            Some(
-                TrieNode { node_type: TrieNodeType::Final(result), .. }) => Some(result.to_string()),
+            Some(TrieNode {
+                node_type: TrieNodeType::Final(result),
+                ..
+            }) => Some(result.to_string()),
             _ => None,
         }
     }
@@ -162,7 +162,10 @@ mod tests {
         let mut trie = Trie::new();
         trie.insert(search_term.to_string());
 
-        assert_eq!(Some(search_term.to_string()), trie.search(search_term.to_string()));
+        assert_eq!(
+            Some(search_term.to_string()),
+            trie.search(search_term.to_string())
+        );
     }
 
     #[test]
@@ -171,7 +174,10 @@ mod tests {
         let mut trie = Trie::new();
         trie.insert_with_score(search_term.to_string(), 10);
 
-        assert_eq!(Some(search_term.to_string()), trie.search(search_term.to_string()));
+        assert_eq!(
+            Some(search_term.to_string()),
+            trie.search(search_term.to_string())
+        );
     }
 
     #[test]
@@ -184,7 +190,10 @@ mod tests {
             trie.insert(term.to_string());
         }
 
-        assert_eq!(Some(search_term.to_string()), trie.search(search_term.to_string()));
+        assert_eq!(
+            Some(search_term.to_string()),
+            trie.search(search_term.to_string())
+        );
     }
 
     #[test]
@@ -195,7 +204,10 @@ mod tests {
 
         let prefix = "Fo";
 
-        assert_eq!(Some(prefix.to_string()), trie.starts_with(prefix.to_string()));
+        assert_eq!(
+            Some(prefix.to_string()),
+            trie.starts_with(prefix.to_string())
+        );
     }
 
     #[test]
@@ -222,11 +234,7 @@ mod tests {
 
     #[test]
     fn get_ranked_results_uses_score_ordering() {
-        let words_and_scores = vec![
-            ("Foreign", 10),
-            ("For", 8),
-            ("Foo", 0),
-        ];
+        let words_and_scores = vec![("Foreign", 10), ("For", 8), ("Foo", 0)];
 
         let expected_words: Vec<String> = words_and_scores
             .iter()
