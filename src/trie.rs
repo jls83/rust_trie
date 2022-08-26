@@ -143,10 +143,9 @@ impl Trie {
     }
 
     pub fn starts_with(&mut self, prefix: String) -> Option<String> {
-        if let Some(_) = self._search(&prefix) {
-            Some(prefix)
-        } else {
-            None
+        match self._search(&prefix) {
+            Some(_) => Some(prefix),
+            _ => None,
         }
     }
 }
