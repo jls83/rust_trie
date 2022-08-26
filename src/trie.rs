@@ -134,7 +134,6 @@ impl Trie {
 
     pub fn search(&mut self, word: String) -> Option<String> {
         match self._search(&word) {
-            // TODO: I don't love the `to_string` call here.
             Some(TrieNode {
                 node_type: TrieNodeType::Final(result),
                 ..
