@@ -1,15 +1,20 @@
 use std::collections::HashMap;
 
+enum TrieNodeType {
+    Final(i64),
+    Intermediate,
+}
+
 struct TrieNode {
     children: HashMap<char, TrieNode>,
-    is_final: bool,
+    node_type: TrieNodeType,
 }
 
 impl TrieNode {
     fn new() -> Self {
         TrieNode {
             children: HashMap::new(),
-            is_final: false,
+            node_type: TrieNodeType::Intermediate,
         }
     }
 }
@@ -23,8 +28,7 @@ impl Trie {
         Trie { root: TrieNode::new() }
     }
 
-    // TODO: template type here?
-    fn insert(&mut self, word: String) {
+    fn _insert(&mut self, word: String, score: i64) {
         let mut current_node = &mut self.root;
 
         for char in word.chars() {
@@ -35,8 +39,17 @@ impl Trie {
             current_node = next_node;
         }
 
-        current_node.is_final = true;
+        current_node.node_type = TrieNodeType::Final(score);
     }
+
+    fn insert(&mut self, word: String) {
+        self._insert(word, 0);
+    }
+
+    fn insert_with_score(&mut self, word: String, score: i64) {
+        self._insert(word, score);
+    }
+
 
     fn _search(&mut self, word: &String) -> Option<&TrieNode> {
         let mut current_node = &self.root;
@@ -52,7 +65,7 @@ impl Trie {
 
     fn search(&mut self, word: String) -> Option<String> {
         match self._search(&word) {
-            Some(TrieNode { children: _, is_final: true }) => Some(word),
+            Some(TrieNode { children: _, node_type: TrieNodeType::Final(_) }) => Some(word),
             _ => None,
         }
     }
@@ -63,6 +76,75 @@ impl Trie {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Trie;
+
+    #[test]
+    fn can_search_for_term() {
+        let search_term = "Foo";
+        let mut trie = Trie::new();
+        trie.insert(search_term.to_string());
+
+        assert_eq!(Some(search_term.to_string()), trie.search(search_term.to_string()));
+    }
+
+    #[test]
+    fn can_search_for_term_with_score() {
+        let search_term = "Foo";
+        let mut trie = Trie::new();
+        trie.insert_with_score(search_term.to_string(), 10);
+
+        assert_eq!(Some(search_term.to_string()), trie.search(search_term.to_string()));
+    }
+
+    #[test]
+    fn can_search_for_term_with_similar_entries() {
+        let search_term = "Foo";
+        let insert_terms = vec!["Foo", "For"];
+
+        let mut trie = Trie::new();
+        for term in insert_terms {
+            trie.insert(term.to_string());
+        }
+
+        assert_eq!(Some(search_term.to_string()), trie.search(search_term.to_string()));
+    }
+
+    #[test]
+    fn can_find_starts_with_items() {
+        let insert_term = "Foo";
+        let mut trie = Trie::new();
+        trie.insert(insert_term.to_string());
+
+        let prefix = "Fo";
+
+        assert_eq!(Some(prefix.to_string()), trie.starts_with(prefix.to_string()));
+    }
+
+    #[test]
+    fn missing_search_term_returns_none() {
+        let insert_term = "Foo";
+        let search_term = "Bar";
+
+        let mut trie = Trie::new();
+        trie.insert(insert_term.to_string());
+
+        assert_eq!(None, trie.search(search_term.to_string()));
+    }
+
+    #[test]
+    fn missing_starts_with_prefix_returns_none() {
+        let insert_term = "Foo";
+        let prefix = "Ba";
+
+        let mut trie = Trie::new();
+        trie.insert(insert_term.to_string());
+
+        assert_eq!(None, trie.starts_with(prefix.to_string()));
     }
 }
 
