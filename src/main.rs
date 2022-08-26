@@ -25,6 +25,9 @@ impl TrieNode {
         }
     }
 
+    // If we have a `word_score` (i.e. the node represents a `Final` result), use that value as the
+    // ranking score. Otherwise, use the aggregate_score value.
+    // TODO: Should the word_score be part of the `TrieNodeType`?
     fn get_ranking_score(&self) -> i64 {
         match self.word_score {
             Some(word_score) => word_score,
@@ -66,6 +69,8 @@ impl Trie {
             current_node = next_node;
         }
 
+        // Set some properties on the last node so that it can be used as a representation of the
+        // incoming `word`.
         current_node.node_type = TrieNodeType::Final(word);
         current_node.word_score = Some(score);
     }
@@ -83,54 +88,39 @@ impl Trie {
     }
 
     fn get_ranked_results(&mut self, prefix: String) -> Option<Vec<String>> {
-        // TODO: Is this ok?
-        let furthest_node = self._search(&prefix);
-
-        let initial_children = match furthest_node {
-            Some(
-                TrieNode {
-                    children: local_children,
-                    node_type: _,
-                    aggregate_score: _,
-                    word_score: _,
-                }) => Some(local_children),
-            _ => None,
+        let initial_children = match self._search(&prefix) {
+            Some(TrieNode { children: local_children, .. }) => local_children,
+            _ => return None,
         };
 
-        if initial_children == None {
-            return None;
-        }
+        // Our collection of "found" items is represented by `TrieNode` instances themselves so
+        // that we can order by the underlying word's score before returning.
+        let mut found_nodes: BinaryHeap<&TrieNode> = BinaryHeap::new();
 
-        let mut result: Vec<String> = Vec::new();
-        // let mut found_nodes: BinaryHeap<&TrieNode> = BinaryHeap::new();
-
+        // TODO: Can we switch this to a `VecDeque` for any kind of savings?
         let mut heap: BinaryHeap<&TrieNode> = initial_children
-            .unwrap()
             .iter()
             .map(|(_, v)| v)
             .collect();
 
         while let Some(next_node) = heap.pop() {
-            // TODO: push TrieNode or String?
-            // if let TrieNodeType::Final(_) = &next_node.node_type {
-            //     found_nodes.push(next_node);
-            // }
-            if let TrieNodeType::Final(word) = &next_node.node_type {
-                result.push(word.to_string());
+            if let TrieNodeType::Final(_) = &next_node.node_type {
+                found_nodes.push(next_node);
             }
-
             for (_, v) in next_node.children.iter() {
                 heap.push(v);
             }
         }
 
-        // let mut result: Vec<String> = Vec::new();
-
-        // while let Some(next_node) = found_nodes.pop() {
-        //     if let TrieNodeType::Final(word) = &next_node.node_type {
-        //         result.push(word.to_string());
-        //     }
-        // }
+        let result: Vec<String> = found_nodes
+            .into_sorted_vec()
+            .iter()
+            .rev()
+            .filter_map(|node| match &node.node_type {
+                TrieNodeType::Final(word) => Some(word.to_string()),
+                _ => None
+            })
+            .collect();
 
         Some(result)
     }
@@ -148,12 +138,7 @@ impl Trie {
         match self._search(&word) {
             // TODO: I don't love the `to_string` call here.
             Some(
-                TrieNode {
-                    node_type: TrieNodeType::Final(result),
-                    children: _,
-                    aggregate_score: _,
-                    word_score: _,
-                }) => Some(result.to_string()),
+                TrieNode { node_type: TrieNodeType::Final(result), .. }) => Some(result.to_string()),
             _ => None,
         }
     }
