@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 enum TrieNodeType {
-    Final,
+    Final(String),
     Intermediate,
 }
 
@@ -42,7 +42,7 @@ impl Trie {
             current_node = next_node;
         }
 
-        current_node.node_type = TrieNodeType::Final;
+        current_node.node_type = TrieNodeType::Final(word);
     }
 
     fn _search(&mut self, word: &String) -> Option<&TrieNode> {
@@ -68,7 +68,13 @@ impl Trie {
 
     fn search(&mut self, word: String) -> Option<String> {
         match self._search(&word) {
-            Some(TrieNode { children: _, node_type: TrieNodeType::Final, score: _ }) => Some(word),
+            // TODO: I don't love the `to_string` call here.
+            Some(
+                TrieNode {
+                    node_type: TrieNodeType::Final(result),
+                    children: _,
+                    score: _,
+                }) => Some(result.to_string()),
             _ => None,
         }
     }
