@@ -100,7 +100,7 @@ impl Trie {
         let mut found_nodes: BinaryHeap<&TrieNode> = BinaryHeap::new();
 
         // TODO: Can we switch this to a `VecDeque` for any kind of savings?
-        let mut heap: BinaryHeap<&TrieNode> = initial_children.iter().map(|(_, v)| v).collect();
+        let mut heap: BinaryHeap<&TrieNode> = initial_children.values().collect();
 
         while let Some(next_node) = heap.pop() {
             if let TrieNodeType::Final(_) = &next_node.node_type {
