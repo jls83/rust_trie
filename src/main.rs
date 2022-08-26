@@ -11,7 +11,8 @@ enum TrieNodeType {
 struct TrieNode {
     children: HashMap<char, TrieNode>,
     node_type: TrieNodeType,
-    score: i64,
+    word_score: Option<i64>,
+    aggregate_score: i64,
 }
 
 impl TrieNode {
@@ -19,14 +20,22 @@ impl TrieNode {
         TrieNode {
             children: HashMap::new(),
             node_type: TrieNodeType::Intermediate,
-            score: 0,
+            word_score: None,
+            aggregate_score: 0,
+        }
+    }
+
+    fn get_ranking_score(&self) -> i64 {
+        match self.word_score {
+            Some(word_score) => word_score,
+            _ => self.aggregate_score,
         }
     }
 }
 
 impl Ord for TrieNode {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.score.cmp(&other.score)
+        self.get_ranking_score().cmp(&other.get_ranking_score())
     }
 }
 
@@ -53,11 +62,12 @@ impl Trie {
                 .children
                 .entry(char)
                 .or_insert(TrieNode::new());
-            next_node.score += score;
+            next_node.aggregate_score += score;
             current_node = next_node;
         }
 
         current_node.node_type = TrieNodeType::Final(word);
+        current_node.word_score = Some(score);
     }
 
     fn _search(&mut self, word: &String) -> Option<&TrieNode> {
@@ -81,7 +91,8 @@ impl Trie {
                 TrieNode {
                     children: local_children,
                     node_type: _,
-                    score: _,
+                    aggregate_score: _,
+                    word_score: _,
                 }) => Some(local_children),
             _ => None,
         };
@@ -140,7 +151,8 @@ impl Trie {
                 TrieNode {
                     node_type: TrieNodeType::Final(result),
                     children: _,
-                    score: _,
+                    aggregate_score: _,
+                    word_score: _,
                 }) => Some(result.to_string()),
             _ => None,
         }
@@ -222,14 +234,38 @@ mod tests {
 
         assert_eq!(None, trie.starts_with(prefix.to_string()));
     }
+
+    #[test]
+    fn get_ranked_results_uses_score_ordering() {
+        let words_and_scores = vec![
+            ("Foreign", 10),
+            ("For", 8),
+            ("Foo", 0),
+        ];
+
+        let expected_words: Vec<String> = words_and_scores
+            .iter()
+            .map(|(word, _)| word.to_string())
+            .collect();
+
+        let mut trie = Trie::new();
+
+        for (word, score) in words_and_scores.iter() {
+            trie.insert_with_score(word.to_string(), *score);
+        }
+
+        let ranked_results = trie.get_ranked_results("Fo".to_string()).unwrap();
+
+        assert_eq!(expected_words, ranked_results);
+    }
 }
 
 fn main() {
     let mut trie = Trie::new();
 
-    trie.insert_with_score("Foo".to_string(), 100);
-    trie.insert_with_score("For".to_string(), 10);
-    trie.insert_with_score("Foreign".to_string(), 8);
+    trie.insert_with_score("Foo".to_string(), 0);
+    trie.insert_with_score("For".to_string(), 8);
+    trie.insert_with_score("Foreign".to_string(), 10);
     trie.insert_with_score("Bar".to_string(), 0);
     trie.insert_with_score("Baz".to_string(), 0);
 
