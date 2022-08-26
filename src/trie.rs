@@ -74,7 +74,7 @@ impl Trie {
         current_node.word_score = Some(score);
     }
 
-    fn _search(&mut self, word: &String) -> Option<&TrieNode> {
+    fn _search(&self, word: &String) -> Option<&TrieNode> {
         let mut current_node = &self.root;
 
         for char in word.chars() {
@@ -86,7 +86,7 @@ impl Trie {
         Some(current_node)
     }
 
-    pub fn get_ranked_results(&mut self, prefix: String) -> Option<Vec<String>> {
+    pub fn get_ranked_results(&self, prefix: String) -> Option<Vec<String>> {
         let initial_children = match self._search(&prefix) {
             Some(TrieNode {
                 children: local_children,
@@ -135,7 +135,7 @@ impl Trie {
         self._insert(word, score);
     }
 
-    pub fn search(&mut self, word: String) -> Option<String> {
+    pub fn search(&self, word: String) -> Option<String> {
         match self._search(&word) {
             Some(TrieNode {
                 node_type: TrieNodeType::Final(result),
@@ -145,7 +145,7 @@ impl Trie {
         }
     }
 
-    pub fn starts_with(&mut self, prefix: String) -> Option<String> {
+    pub fn starts_with(&self, prefix: String) -> Option<String> {
         match self._search(&prefix) {
             Some(_) => Some(prefix),
             _ => None,
