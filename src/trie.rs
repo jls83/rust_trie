@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::{BinaryHeap, HashMap, VecDeque};
+use std::sync::{Arc, RwLock};
 
 #[derive(Clone, Eq, PartialEq)]
 enum TrieNodeType {
@@ -7,13 +8,15 @@ enum TrieNodeType {
     Intermediate,
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone)]
 struct TrieNode {
-    children: HashMap<char, TrieNode>,
+    children: HashMap<char, TrieNodeChild>,
     node_type: TrieNodeType,
     word_score: Option<i64>,
     aggregate_score: i64,
 }
+
+type TrieNodeChild = Arc<RwLock<TrieNode>>;
 
 impl TrieNode {
     fn new() -> Self {
@@ -48,42 +51,56 @@ impl PartialOrd for TrieNode {
     }
 }
 
+impl Eq for TrieNode {}
+
+impl PartialEq for TrieNode {
+    fn eq(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
 pub struct Trie {
-    root: TrieNode,
+    root: TrieNodeChild,
 }
 
 impl Trie {
     pub fn new() -> Self {
         Trie {
-            root: TrieNode::new(),
+            root: Arc::new(RwLock::new(TrieNode::new())),
         }
     }
 
     fn _insert(&mut self, word: String, score: i64) {
-        let mut current_node = &mut self.root;
+        let mut current_node = self.root.clone();
 
         for char in word.chars() {
-            let mut next_node = current_node.children.entry(char).or_insert(TrieNode::new());
-            next_node.aggregate_score += score;
-            current_node = next_node;
+            let mut next_node = current_node
+                .write()
+                .unwrap()
+                .children
+                .entry(char)
+                .or_insert(Arc::new(RwLock::new(TrieNode::new())));
+            next_node.write().unwrap().aggregate_score += score;
+            current_node = *next_node;
         }
 
         // Set some properties on the last node so that it can be used as a representation of the
         // incoming `word`.
-        current_node.node_type = TrieNodeType::Final(word);
-        current_node.word_score = Some(score);
+        let mut current_node_handle = current_node.write().unwrap();
+        current_node_handle.node_type = TrieNodeType::Final(word);
+        current_node_handle.word_score = Some(score);
     }
 
     fn _search(&self, word: &String) -> Option<&TrieNode> {
-        let mut current_node = &self.root;
+        let mut current_node = self.root.clone();
 
         for char in word.chars() {
-            match current_node.children.get(&char) {
-                Some(next_node) => current_node = next_node,
+            match current_node.read().unwrap().children.get(&char) {
+                Some(next_node) => current_node = *next_node,
                 None => return None,
             }
         }
-        Some(current_node)
+        Some(&current_node.read().unwrap())
     }
 
     pub fn get_ranked_results(&self, prefix: String) -> Option<Vec<String>> {
@@ -100,14 +117,16 @@ impl Trie {
         let mut found_nodes: BinaryHeap<&TrieNode> = BinaryHeap::new();
 
         // TODO: Can we switch this to a `VecDeque` for any kind of savings?
-        let mut heap: BinaryHeap<&TrieNode> = initial_children.values().collect();
+        let mut heap: VecDeque<&TrieNodeChild> = initial_children
+            .values()
+            .collect();
 
-        while let Some(next_node) = heap.pop() {
+        while let Some(next_node) = heap.pop_front() {
             if let TrieNodeType::Final(_) = &next_node.node_type {
                 found_nodes.push(next_node);
             }
             for (_, v) in next_node.children.iter() {
-                heap.push(v);
+                heap.push(&v.read().unwrap());
             }
         }
 
