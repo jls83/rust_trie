@@ -1,5 +1,7 @@
+use crate::arena_trie::ArenaTrie;
 use crate::trie::Trie;
 
+pub mod arena_trie;
 pub mod trie;
 
 fn main() {
