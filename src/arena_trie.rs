@@ -1,7 +1,8 @@
-use std::collections::HashMap;
+use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap};
 
 type ArenaTrieIndex = usize;
-type ArenaTrieNodeValue = char;  // TODO: generic over type T
+type ArenaTrieNodeValue = char; // TODO: generic over type T
 
 #[derive(Clone, Eq, PartialEq)]
 enum ArenaTrieNodeType {
@@ -9,6 +10,7 @@ enum ArenaTrieNodeType {
     Intermediate,
 }
 
+#[derive(Clone, Eq, PartialEq)]
 struct ArenaTrieNode {
     children: HashMap<ArenaTrieNodeValue, ArenaTrieIndex>,
     node_type: ArenaTrieNodeType,
@@ -35,7 +37,18 @@ impl ArenaTrieNode {
             _ => self.aggregate_score,
         }
     }
+}
 
+impl Ord for ArenaTrieNode {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.get_ranking_score().cmp(&other.get_ranking_score())
+    }
+}
+
+impl PartialOrd for ArenaTrieNode {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 pub struct ArenaTrie {
@@ -84,10 +97,53 @@ impl ArenaTrie {
         Some(&self.arena[current_node_index])
     }
 
+    pub fn get_ranked_results(&self, prefix: String) -> Option<Vec<String>> {
+        let initial_children = match self._search(&prefix) {
+            Some(ArenaTrieNode {
+                children: local_children,
+                ..
+            }) => local_children,
+            _ => return None,
+        };
+
+        // Our collection of "found" items is represented by `TrieNode` instances themselves so
+        // that we can order by the underlying word's score before returning.
+        let mut found_nodes: BinaryHeap<&ArenaTrieNode> = BinaryHeap::new();
+
+        // TODO: Can we switch this to a `VecDeque` for any kind of savings?
+        let mut heap: BinaryHeap<&ArenaTrieNode> = initial_children
+            .values()
+            .map(|idx| &self.arena[*idx])
+            .collect();
+
+        while let Some(next_node) = heap.pop() {
+            if let ArenaTrieNodeType::Final(_) = &next_node.node_type {
+                found_nodes.push(next_node);
+            }
+            for (_, idx) in next_node.children.iter() {
+                heap.push(&self.arena[*idx]);
+            }
+        }
+
+        // NOTE: It's a bit convoluted to turn a `BinaryHeap` into a `Vec` with the values in heap
+        // order. `BinaryHeap.into_iter_sorted` will do what we need, but it is not yet stable (see
+        // https://github.com/rust-lang/rust/issues/59278).
+        let result: Vec<String> = found_nodes
+            .into_sorted_vec()
+            .iter()
+            .rev()
+            .filter_map(|node| match &node.node_type {
+                ArenaTrieNodeType::Final(word) => Some(word.to_string()),
+                _ => None,
+            })
+            .collect();
+
+        Some(result)
+    }
+
     pub fn insert(&mut self, word: String) {
         self._insert(word, 0);
     }
-
 
     pub fn insert_with_score(&mut self, word: String, score: i64) {
         self._insert(word, score);
@@ -191,23 +247,23 @@ mod tests {
         assert_eq!(None, trie.starts_with(prefix.to_string()));
     }
 
-    // #[test]
-    // fn get_ranked_results_uses_score_ordering() {
-    //     let words_and_scores = vec![("Foreign", 10), ("For", 8), ("Foo", 0)];
+    #[test]
+    fn get_ranked_results_uses_score_ordering() {
+        let words_and_scores = vec![("Foreign", 10), ("For", 8), ("Foo", 0)];
 
-    //     let expected_words: Vec<String> = words_and_scores
-    //         .iter()
-    //         .map(|(word, _)| word.to_string())
-    //         .collect();
+        let expected_words: Vec<String> = words_and_scores
+            .iter()
+            .map(|(word, _)| word.to_string())
+            .collect();
 
-    //     let mut trie = ArenaTrie::new();
+        let mut trie = ArenaTrie::new();
 
-    //     for (word, score) in words_and_scores.iter() {
-    //         trie.insert_with_score(word.to_string(), *score);
-    //     }
+        for (word, score) in words_and_scores.iter() {
+            trie.insert_with_score(word.to_string(), *score);
+        }
 
-    //     let ranked_results = trie.get_ranked_results("Fo".to_string()).unwrap();
+        let ranked_results = trie.get_ranked_results("Fo".to_string()).unwrap();
 
-    //     assert_eq!(expected_words, ranked_results);
-    // }
+        assert_eq!(expected_words, ranked_results);
+    }
 }
