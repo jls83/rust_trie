@@ -16,10 +16,10 @@ fn main() {
     trie.insert_with_score("Bar".to_string(), 0);
     trie.insert_with_score("Baz".to_string(), 0);
 
-    // // Should print values in the expected order ("Foreign", "For", "Foo").
-    // for result in trie.get_ranked_results("Fo".to_string()).unwrap().iter() {
-    //     println!("{}", result);
-    // }
+    // Should print values in the expected order ("Foreign", "For", "Foo").
+    for result in trie.get_ranked_results("Fo".to_string()).unwrap().iter() {
+        println!("{}", result);
+    }
 
     // Testing for membership works as expected as well.
     match trie.search("For".to_string()) {
