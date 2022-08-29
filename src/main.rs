@@ -1,11 +1,11 @@
 use crate::arena_trie::ArenaTrie;
-use crate::trie::Trie;
+// use crate::trie::Trie;
 
 pub mod arena_trie;
-pub mod trie;
+// pub mod trie;
 
 fn main() {
-    let mut trie = Trie::new();
+    let mut trie = ArenaTrie::new();
 
     // Insert a few values with a weight; higher values show higher in the results.
     trie.insert_with_score("Foo".to_string(), 0);
@@ -16,10 +16,10 @@ fn main() {
     trie.insert_with_score("Bar".to_string(), 0);
     trie.insert_with_score("Baz".to_string(), 0);
 
-    // Should print values in the expected order ("Foreign", "For", "Foo").
-    for result in trie.get_ranked_results("Fo".to_string()).unwrap().iter() {
-        println!("{}", result);
-    }
+    // // Should print values in the expected order ("Foreign", "For", "Foo").
+    // for result in trie.get_ranked_results("Fo".to_string()).unwrap().iter() {
+    //     println!("{}", result);
+    // }
 
     // Testing for membership works as expected as well.
     match trie.search("For".to_string()) {
