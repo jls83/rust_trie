@@ -57,9 +57,11 @@ impl ArenaTrie {
             if let Some(next_idx) = self.arena[current_node_index].children.get(&char) {
                 current_node_index = *next_idx;
             } else {
+                // TODO: does the ordering of operations matter here?
                 let next_idx = self.arena.len();
                 self.arena.push(ArenaTrieNode::new());
-                self.arena[current_node_index].children.insert(char, next_idx);
+                let node_to_mod = &mut self.arena[current_node_index];
+                node_to_mod.children.insert(char, next_idx);
                 current_node_index = next_idx;
             }
         }
