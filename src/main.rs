@@ -49,7 +49,11 @@ fn main() {
     arena_trie.insert_with_score("Baz".to_string(), 0);
 
     // Should print values in the expected order ("Foreign", "For", "Foo").
-    for result in arena_trie.get_ranked_results("Fo".to_string()).unwrap().iter() {
+    for result in arena_trie
+        .get_ranked_results("Fo".to_string())
+        .unwrap()
+        .iter()
+    {
         println!("{}", result);
     }
 

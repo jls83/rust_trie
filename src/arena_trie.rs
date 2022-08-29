@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
+use std::sync::{Arc, RwLock};
 
 type ArenaTrieIndex = usize;
 type ArenaTrieNodeValue = char; // TODO: generic over type T
@@ -52,57 +53,59 @@ impl PartialOrd for ArenaTrieNode {
 }
 
 pub struct ArenaTrie {
-    arena: Vec<ArenaTrieNode>,
+    arena: Arc<RwLock<Vec<ArenaTrieNode>>>,
 }
 
 impl ArenaTrie {
     pub fn new() -> Self {
         ArenaTrie {
-            arena: vec![ArenaTrieNode::new()],
-            // root: ArenaTrieNode::new(),
+            arena: Arc::new(RwLock::new(vec![ArenaTrieNode::new()])),
         }
     }
 
     fn _insert(&mut self, word: String, score: i64) {
+        let mut arena = self.arena.write().expect("RwLock poisoned");
+
         let mut current_node_index = 0;
 
         for char in word.chars() {
-            if let Some(next_idx) = self.arena[current_node_index].children.get(&char) {
+            if let Some(next_idx) = arena[current_node_index].children.get(&char) {
                 current_node_index = *next_idx;
             } else {
                 // TODO: does the ordering of operations matter here?
-                let next_idx = self.arena.len();
-                self.arena.push(ArenaTrieNode::new());
-                let node_to_mod = &mut self.arena[current_node_index];
+                let next_idx = arena.len();
+                arena.push(ArenaTrieNode::new());
+                let node_to_mod = &mut arena[current_node_index];
                 node_to_mod.children.insert(char, next_idx);
                 current_node_index = next_idx;
             }
         }
 
-        let mut current_node = &mut self.arena[current_node_index];
+        let mut current_node = &mut arena[current_node_index];
         current_node.node_type = ArenaTrieNodeType::Final(word);
         current_node.word_score = Some(score);
     }
 
-    fn _search(&self, word: &String) -> Option<&ArenaTrieNode> {
+    fn _search(&self, word: &String) -> Option<ArenaTrieIndex> {
+        let arena = self.arena.read().expect("RwLock poisoned");
+
         let mut current_node_index = 0;
 
         for char in word.chars() {
-            match self.arena[current_node_index].children.get(&char) {
+            match arena[current_node_index].children.get(&char) {
                 Some(next_idx) => current_node_index = *next_idx,
                 None => return None,
             }
         }
 
-        Some(&self.arena[current_node_index])
+        Some(current_node_index)
     }
 
     pub fn get_ranked_results(&self, prefix: String) -> Option<Vec<String>> {
+        let arena = self.arena.read().expect("RwLock poisoned");
+
         let initial_children = match self._search(&prefix) {
-            Some(ArenaTrieNode {
-                children: local_children,
-                ..
-            }) => local_children,
+            Some(idx) => &arena[idx].children,
             _ => return None,
         };
 
@@ -111,17 +114,15 @@ impl ArenaTrie {
         let mut found_nodes: BinaryHeap<&ArenaTrieNode> = BinaryHeap::new();
 
         // TODO: Can we switch this to a `VecDeque` for any kind of savings?
-        let mut heap: BinaryHeap<&ArenaTrieNode> = initial_children
-            .values()
-            .map(|idx| &self.arena[*idx])
-            .collect();
+        let mut heap: BinaryHeap<&ArenaTrieNode> =
+            initial_children.values().map(|idx| &arena[*idx]).collect();
 
         while let Some(next_node) = heap.pop() {
             if let ArenaTrieNodeType::Final(_) = &next_node.node_type {
                 found_nodes.push(next_node);
             }
             for (_, idx) in next_node.children.iter() {
-                heap.push(&self.arena[*idx]);
+                heap.push(&arena[*idx]);
             }
         }
 
@@ -150,11 +151,16 @@ impl ArenaTrie {
     }
 
     pub fn search(&self, word: String) -> Option<String> {
+        let arena = self.arena.read().expect("RwLock poisoned");
+
         match self._search(&word) {
-            Some(ArenaTrieNode {
-                node_type: ArenaTrieNodeType::Final(result),
-                ..
-            }) => Some(result.to_string()),
+            Some(idx) => match &arena[idx] {
+                ArenaTrieNode {
+                    node_type: ArenaTrieNodeType::Final(result),
+                    ..
+                } => Some(result.to_string()),
+                _ => return None,
+            },
             _ => None,
         }
     }
