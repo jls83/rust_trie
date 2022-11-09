@@ -319,7 +319,8 @@ mod tests {
         let expected_words: Vec<String> = words_and_scores
             .iter()
             .map(|(word, _)| word.to_string())
-            .collect::<Vec<String>>()[..2].to_vec();
+            .collect::<Vec<String>>()[..2]
+            .to_vec();
 
         let mut trie = Trie::new();
 
