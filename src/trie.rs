@@ -114,9 +114,10 @@ impl Trie {
         let mut current_node = &self.root;
 
         for char in word.chars() {
-            match current_node.children.get(&char) {
-                Some(next_node) => current_node = next_node,
-                None => return None,
+            if let Some(next_node) = current_node.children.get(&char) {
+                current_node = next_node;
+            } else {
+                return None;
             }
         }
         Some(current_node)
