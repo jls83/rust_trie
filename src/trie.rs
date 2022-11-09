@@ -1,3 +1,4 @@
+use std::cmp;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
@@ -9,36 +10,28 @@ enum TrieNodeType {
 
 #[derive(Clone, Eq, PartialEq)]
 struct TrieNode {
+    value: Option<char>,
     children: HashMap<char, TrieNode>,
     node_type: TrieNodeType,
     word_score: Option<i64>,
-    aggregate_score: i64,
+    node_score: i64,
 }
 
 impl TrieNode {
-    fn new() -> Self {
+    fn new(value: Option<char>) -> Self {
         TrieNode {
+            value,
             children: HashMap::new(),
             node_type: TrieNodeType::Intermediate,
             word_score: None,
-            aggregate_score: 0,
-        }
-    }
-
-    // If we have a `word_score` (i.e. the node represents a `Final` result), use that value as the
-    // ranking score. Otherwise, use the aggregate_score value.
-    // TODO: Should the word_score be part of the `TrieNodeType`?
-    fn get_ranking_score(&self) -> i64 {
-        match self.word_score {
-            Some(word_score) => word_score,
-            _ => self.aggregate_score,
+            node_score: 0,
         }
     }
 }
 
 impl Ord for TrieNode {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.get_ranking_score().cmp(&other.get_ranking_score())
+        self.node_score.cmp(&other.node_score)
     }
 }
 
@@ -52,10 +45,50 @@ pub struct Trie {
     root: TrieNode,
 }
 
+#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+struct QueueWrapper<'a> {
+    node: &'a TrieNode,
+    nodes_previous: Vec<&'a TrieNode>,
+}
+
+#[derive(Clone, Eq, PartialEq)]
+struct OutputWrapper<'a> {
+    node: &'a TrieNode,
+    nodes_previous: Vec<&'a TrieNode>,
+}
+
+impl<'a> OutputWrapper<'a> {
+    fn wordify(&self, prefix: &String) -> Option<String> {
+        if let TrieNodeType::Final(_) = self.node.node_type {
+            return Some(
+                prefix.to_owned()
+                    + &self
+                        .nodes_previous
+                        .iter()
+                        .map(|n| n.value.unwrap())
+                        .collect::<String>(),
+            );
+        }
+        None
+    }
+}
+
+impl Ord for OutputWrapper<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.node.word_score.cmp(&other.node.word_score)
+    }
+}
+
+impl PartialOrd for OutputWrapper<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl Trie {
     pub fn new() -> Self {
         Trie {
-            root: TrieNode::new(),
+            root: TrieNode::new(None),
         }
     }
 
@@ -63,8 +96,11 @@ impl Trie {
         let mut current_node = &mut self.root;
 
         for char in word.chars() {
-            let mut next_node = current_node.children.entry(char).or_insert(TrieNode::new());
-            next_node.aggregate_score += score;
+            let mut next_node = current_node
+                .children
+                .entry(char)
+                .or_insert(TrieNode::new(Some(char)));
+            next_node.node_score = cmp::max(next_node.node_score, score);
             current_node = next_node;
         }
 
@@ -87,29 +123,43 @@ impl Trie {
     }
 
     pub fn get_ranked_results(&self, prefix: String) -> Option<Vec<String>> {
-        let initial_children = match self._search(&prefix) {
-            Some(TrieNode {
-                children: local_children,
-                ..
-            }) => local_children,
-            _ => return None,
-        };
+        // Our collection of "found" items is represented by `OutputWrapper`
+        // instances so that we can use a specific `Ord` trait implementation
+        // to order by the underlying word's score before returning.
+        let mut found_nodes: BinaryHeap<OutputWrapper> = BinaryHeap::new();
 
-        // Our collection of "found" items is represented by `TrieNode` instances themselves so
-        // that we can order by the underlying word's score before returning.
-        let mut found_nodes: BinaryHeap<&TrieNode> = BinaryHeap::new();
+        let mut heap: BinaryHeap<QueueWrapper> = BinaryHeap::new();
 
-        // TODO: Can we switch this to a `VecDeque` for any kind of savings?
-        let mut heap: BinaryHeap<&TrieNode> = initial_children.values().collect();
+        if let Some(node) = self._search(&prefix) {
+            heap.push(QueueWrapper {
+                node,
+                nodes_previous: vec![],
+            });
+        } else {
+            return None;
+        }
 
-        while let Some(next_node) = heap.pop() {
-            if let TrieNodeType::Final(_) = &next_node.node_type {
-                found_nodes.push(next_node);
+        while let Some(QueueWrapper {
+            node,
+            mut nodes_previous,
+        }) = heap.pop()
+        {
+            nodes_previous.push(node);
+            if let TrieNodeType::Final(_) = &node.node_type {
+                found_nodes.push(OutputWrapper {
+                    node,
+                    nodes_previous: nodes_previous.to_owned(),
+                });
             }
-            for (_, v) in next_node.children.iter() {
-                heap.push(v);
+            for (_, v) in node.children.iter() {
+                heap.push(QueueWrapper {
+                    node: v,
+                    nodes_previous: nodes_previous.to_owned(),
+                });
             }
         }
+
+        let silly_prefix = prefix[0..prefix.len() - 1].to_string();
 
         // NOTE: It's a bit convoluted to turn a `BinaryHeap` into a `Vec` with the values in heap
         // order. `BinaryHeap.into_iter_sorted` will do what we need, but it is not yet stable (see
@@ -118,10 +168,7 @@ impl Trie {
             .into_sorted_vec()
             .iter()
             .rev()
-            .filter_map(|node| match &node.node_type {
-                TrieNodeType::Final(word) => Some(word.to_string()),
-                _ => None,
-            })
+            .map(|t| t.wordify(&silly_prefix).unwrap())
             .collect();
 
         Some(result)
