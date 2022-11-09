@@ -142,11 +142,7 @@ impl Trie {
             return None;
         }
 
-        while let Some(QueueWrapper {
-            node,
-            mut nodes_previous,
-        }) = heap.pop()
-        {
+        while let Some(QueueWrapper { node, mut nodes_previous }) = heap.pop() {
             nodes_previous.push(node);
             if let TrieNodeType::Final(_) = &node.node_type {
                 found_nodes.push(OutputWrapper {
