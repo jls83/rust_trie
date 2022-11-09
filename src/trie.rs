@@ -123,12 +123,12 @@ impl Trie {
         Some(current_node)
     }
 
-    // TODO: add `k` param to return only the top `k` results.
-    pub fn get_ranked_results(&self, prefix: String) -> Option<Vec<String>> {
+    fn _get_ranked_results(&self, prefix: String, k: usize) -> Option<Vec<String>> {
         // Our collection of "found" items is represented by `OutputWrapper`
         // instances so that we can use a specific `Ord` trait implementation
         // to order by the underlying word's score before returning.
         let mut found_nodes: BinaryHeap<OutputWrapper> = BinaryHeap::new();
+        let mut max_word_score: i64 = 0;
 
         let mut heap: BinaryHeap<QueueWrapper> = BinaryHeap::new();
 
@@ -144,12 +144,17 @@ impl Trie {
         }
 
         while let Some(QueueWrapper { node, mut nodes_previous }) = heap.pop() {
+            // TODO: Some(max_word_score) is weird...
+            if (k != 0 && node.word_score < Some(max_word_score)) && found_nodes.len() >= k {
+                break;
+            }
             nodes_previous.push(node);
             if let TrieNodeType::Final(_) = &node.node_type {
                 found_nodes.push(OutputWrapper {
                     node,
                     nodes_previous: nodes_previous.to_owned(),
                 });
+                max_word_score = cmp::max(max_word_score, node.word_score.unwrap());
             }
             for child in node.children.values() {
                 heap.push(QueueWrapper {
@@ -170,6 +175,14 @@ impl Trie {
             .collect();
 
         Some(result)
+    }
+
+    pub fn get_ranked_results(&self, prefix: String) -> Option<Vec<String>> {
+        self._get_ranked_results(prefix, 0)
+    }
+
+    pub fn get_k_ranked_results(&self, prefix: String, k: usize) -> Option<Vec<String>> {
+        self._get_ranked_results(prefix, k)
     }
 
     pub fn insert(&mut self, word: String) {
@@ -296,5 +309,26 @@ mod tests {
         let ranked_results = trie.get_ranked_results("Fo".to_string()).unwrap();
 
         assert_eq!(expected_words, ranked_results);
+    }
+
+    #[test]
+    fn get_k_ranked_results_returns_correct_count() {
+        let words_and_scores = vec![("Foreign", 10), ("For", 8), ("Foo", 0)];
+
+        // TODO: This seems like a silly way to construct this.
+        let expected_words: Vec<String> = words_and_scores
+            .iter()
+            .map(|(word, _)| word.to_string())
+            .collect::<Vec<String>>()[..2].to_vec();
+
+        let mut trie = Trie::new();
+
+        for (word, score) in words_and_scores.iter() {
+            trie.insert_with_score(word.to_string(), *score);
+        }
+
+        let ranked_results = trie.get_k_ranked_results("Fo".to_string(), 2).unwrap();
+
+        assert_eq!(expected_words[..2], ranked_results);
     }
 }
