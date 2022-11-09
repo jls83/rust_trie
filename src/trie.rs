@@ -132,10 +132,12 @@ impl Trie {
         let mut heap: BinaryHeap<QueueWrapper> = BinaryHeap::new();
 
         if let Some(node) = self._search(&prefix) {
-            heap.push(QueueWrapper {
-                node,
-                nodes_previous: vec![],
-            });
+            for child in node.children.values() {
+                heap.push(QueueWrapper {
+                    node: child,
+                    nodes_previous: vec![],
+                });
+            }
         } else {
             return None;
         }
@@ -152,17 +154,13 @@ impl Trie {
                     nodes_previous: nodes_previous.to_owned(),
                 });
             }
-            for (_, v) in node.children.iter() {
+            for child in node.children.values() {
                 heap.push(QueueWrapper {
-                    node: v,
+                    node: child,
                     nodes_previous: nodes_previous.to_owned(),
                 });
             }
         }
-
-        // TODO: Horrible hack, leaving the bad var name to shame myself into
-        // fixing this eventually.
-        let silly_prefix = prefix[0..prefix.len() - 1].to_string();
 
         // NOTE: It's a bit convoluted to turn a `BinaryHeap` into a `Vec` with the values in heap
         // order. `BinaryHeap.into_iter_sorted` will do what we need, but it is not yet stable (see
@@ -171,7 +169,7 @@ impl Trie {
             .into_sorted_vec()
             .iter()
             .rev()
-            .map(|t| t.wordify(&silly_prefix).unwrap())
+            .map(|t| t.wordify(&prefix).unwrap())
             .collect();
 
         Some(result)
