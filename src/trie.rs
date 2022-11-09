@@ -122,6 +122,7 @@ impl Trie {
         Some(current_node)
     }
 
+    // TODO: add `k` param to return only the top `k` results.
     pub fn get_ranked_results(&self, prefix: String) -> Option<Vec<String>> {
         // Our collection of "found" items is represented by `OutputWrapper`
         // instances so that we can use a specific `Ord` trait implementation
@@ -159,6 +160,8 @@ impl Trie {
             }
         }
 
+        // TODO: Horrible hack, leaving the bad var name to shame myself into
+        // fixing this eventually.
         let silly_prefix = prefix[0..prefix.len() - 1].to_string();
 
         // NOTE: It's a bit convoluted to turn a `BinaryHeap` into a `Vec` with the values in heap
