@@ -1,8 +1,9 @@
 use std::cmp;
 use std::cmp::Ordering;
+use std::collections::hash_map::Values;
 use std::collections::{BinaryHeap, HashMap};
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 enum TrieNodeType {
     Final,
     Intermediate,
@@ -76,6 +77,20 @@ impl<'a> QueueWrapper<'a> {
             nodes_previous,
         }
     }
+
+    fn children(&self) -> Option<Values<'a, char, TrieNode>> {
+        match self.last() {
+            Some(node) => Some(node.children.values()),
+            _ => None,
+        }
+    }
+
+    fn leaf_type(&self) -> Option<TrieNodeType> {
+        match self.last() {
+            Some(node) => Some(node.node_type),
+            _ => None,
+        }
+    }
 }
 
 impl Ord for QueueWrapper<'_> {
@@ -121,6 +136,13 @@ impl<'a> OutputWrapper<'a> {
     fn to_queue_wrapper(&self) -> QueueWrapper<'a> {
         QueueWrapper {
             nodes_previous: self.nodes_previous.to_owned(),
+        }
+    }
+
+    fn leaf_type(&self) -> Option<TrieNodeType> {
+        match self.last() {
+            Some(node) => Some(node.node_type),
+            _ => None,
         }
     }
 }
@@ -201,12 +223,14 @@ impl Trie {
             if (k != 0 && queue_wrapper.output_score() < max_word_score) && found_nodes.len() >= k {
                 break;
             }
-            if let TrieNodeType::Final = queue_wrapper.last().unwrap().node_type {
+            if let Some(TrieNodeType::Final) = queue_wrapper.leaf_type() {
                 found_nodes.push(queue_wrapper.to_output_wrapper());
                 max_word_score = cmp::max(max_word_score, queue_wrapper.output_score());
             }
-            for child in queue_wrapper.last().unwrap().children.values() {
-                heap.push(queue_wrapper.fart(child));
+            if let Some(children) = queue_wrapper.children() {
+                for child in children {
+                    heap.push(queue_wrapper.fart(child));
+                }
             }
         }
 
@@ -241,8 +265,8 @@ impl Trie {
 
     pub fn search(&self, word: String) -> Option<String> {
         if let Some(output_wrapper) = self._search(&word) {
-            match output_wrapper.last().unwrap().node_type {
-                TrieNodeType::Final => Some(output_wrapper.join()),
+            match output_wrapper.leaf_type() {
+                Some(TrieNodeType::Final) => Some(output_wrapper.join()),
                 _ => None,
             }
         } else {
