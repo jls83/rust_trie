@@ -144,15 +144,19 @@ impl Trie {
         let mut found_nodes: BinaryHeap<OutputWrapper> = BinaryHeap::new();
         let mut max_word_score: i64 = 0;
 
-        let mut heap: BinaryHeap<QueueWrapper> = BinaryHeap::new();
+        let mut heap: BinaryHeap<QueueWrapper>;
 
         if let Some(output_wrapper) = self._search(&prefix) {
-            for child in (output_wrapper.last().unwrap()).children.values() {
-                heap.push(QueueWrapper {
-                    node: child,
+            heap = output_wrapper
+                .last()
+                .unwrap()
+                .children
+                .values()
+                .map(|node| QueueWrapper {
+                    node,
                     nodes_previous: vec![],
-                });
-            }
+                })
+                .collect();
         } else {
             return None;
         }
