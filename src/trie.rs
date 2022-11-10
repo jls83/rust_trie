@@ -64,11 +64,18 @@ impl<'a> OutputWrapper<'a> {
             .map(|n| n.value.unwrap_or_default())
             .collect::<String>()
     }
+
+    fn output_score(&self) -> i64 {
+        match self.node.word_score {
+            Some(score) => score,
+            _ => 0,
+        }
+    }
 }
 
 impl Ord for OutputWrapper<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.node.word_score.cmp(&other.node.word_score)
+        self.output_score().cmp(&other.output_score())
     }
 }
 
