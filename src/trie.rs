@@ -4,7 +4,7 @@ use std::collections::{BinaryHeap, HashMap};
 
 #[derive(Clone, Eq, PartialEq)]
 enum TrieNodeType {
-    Final(String),
+    Final,
     Intermediate,
 }
 
@@ -99,7 +99,7 @@ impl Trie {
 
         // Set some properties on the last node so that it can be used as a representation of the
         // incoming `word`.
-        current_node.node_type = TrieNodeType::Final(word);
+        current_node.node_type = TrieNodeType::Final;
         current_node.word_score = Some(score);
     }
 
@@ -149,7 +149,7 @@ impl Trie {
                 break;
             }
             nodes_previous.push(node);
-            if let TrieNodeType::Final(_) = &node.node_type {
+            if let TrieNodeType::Final = &node.node_type {
                 found_nodes.push(OutputWrapper {
                     node,
                     nodes_previous: nodes_previous.to_owned(),
@@ -196,7 +196,7 @@ impl Trie {
     pub fn search(&self, word: String) -> Option<String> {
         if let Some(output_wrapper) = self._search(&word) {
             match output_wrapper.node.node_type {
-                TrieNodeType::Final(_) => Some(output_wrapper.join()),
+                TrieNodeType::Final => Some(output_wrapper.join()),
                 _ => None,
             }
         } else {
