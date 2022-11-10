@@ -66,8 +66,11 @@ impl<'a> OutputWrapper<'a> {
     }
 
     fn output_score(&self) -> i64 {
-        match self.node.word_score {
-            Some(score) => score,
+        match self.nodes_previous.last() {
+            Some(node) => match node.word_score {
+                Some(score) => score,
+                _ => 0,
+            },
             _ => 0,
         }
     }
