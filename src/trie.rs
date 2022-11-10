@@ -1,44 +1,38 @@
+use std::cmp;
 use std::cmp::Ordering;
+use std::collections::hash_map::Values;
 use std::collections::{BinaryHeap, HashMap};
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 enum TrieNodeType {
-    Final(String),
+    Final,
     Intermediate,
 }
 
 #[derive(Clone, Eq, PartialEq)]
 struct TrieNode {
+    value: Option<char>,
     children: HashMap<char, TrieNode>,
     node_type: TrieNodeType,
     word_score: Option<i64>,
-    aggregate_score: i64,
+    node_score: i64,
 }
 
 impl TrieNode {
-    fn new() -> Self {
+    fn new(value: Option<char>) -> Self {
         TrieNode {
+            value,
             children: HashMap::new(),
             node_type: TrieNodeType::Intermediate,
             word_score: None,
-            aggregate_score: 0,
-        }
-    }
-
-    // If we have a `word_score` (i.e. the node represents a `Final` result), use that value as the
-    // ranking score. Otherwise, use the aggregate_score value.
-    // TODO: Should the word_score be part of the `TrieNodeType`?
-    fn get_ranking_score(&self) -> i64 {
-        match self.word_score {
-            Some(word_score) => word_score,
-            _ => self.aggregate_score,
+            node_score: 0,
         }
     }
 }
 
 impl Ord for TrieNode {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.get_ranking_score().cmp(&other.get_ranking_score())
+        self.node_score.cmp(&other.node_score)
     }
 }
 
@@ -52,10 +46,119 @@ pub struct Trie {
     root: TrieNode,
 }
 
+#[derive(Clone, Eq, PartialEq)]
+struct QueueWrapper<'a> {
+    nodes: Vec<&'a TrieNode>,
+}
+
+impl<'a> QueueWrapper<'a> {
+    fn last(&self) -> Option<&&'a TrieNode> {
+        self.nodes.last()
+    }
+
+    fn output_score(&self) -> i64 {
+        match self.last() {
+            Some(node) => node.node_score,
+            _ => 0,
+        }
+    }
+
+    fn to_output_wrapper(&self) -> OutputWrapper<'a> {
+        OutputWrapper {
+            nodes: self.nodes.to_owned(),
+        }
+    }
+
+    fn new_with_node(&self, node: &'a TrieNode) -> Self {
+        let mut nodes = self.nodes.to_owned();
+        nodes.push(node);
+        Self { nodes }
+    }
+
+    fn children(&self) -> Option<Values<'a, char, TrieNode>> {
+        match self.last() {
+            Some(node) => Some(node.children.values()),
+            _ => None,
+        }
+    }
+
+    fn leaf_type(&self) -> Option<TrieNodeType> {
+        match self.last() {
+            Some(node) => Some(node.node_type),
+            _ => None,
+        }
+    }
+}
+
+impl Ord for QueueWrapper<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.output_score().cmp(&other.output_score())
+    }
+}
+
+impl PartialOrd for QueueWrapper<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
+struct OutputWrapper<'a> {
+    nodes: Vec<&'a TrieNode>,
+}
+
+impl<'a> OutputWrapper<'a> {
+    fn join(&self) -> String {
+        self.nodes
+            .iter()
+            .map(|n| n.value.unwrap_or_default())
+            .collect::<String>()
+    }
+
+    fn last(&self) -> Option<&&'a TrieNode> {
+        self.nodes.last()
+    }
+
+    fn output_score(&self) -> i64 {
+        match self.last() {
+            Some(node) => match node.word_score {
+                Some(score) => score,
+                _ => 0,
+            },
+            _ => 0,
+        }
+    }
+
+    fn to_queue_wrapper(&self) -> QueueWrapper<'a> {
+        QueueWrapper {
+            nodes: self.nodes.to_owned(),
+        }
+    }
+
+    fn leaf_type(&self) -> Option<TrieNodeType> {
+        match self.last() {
+            Some(node) => Some(node.node_type),
+            _ => None,
+        }
+    }
+}
+
+impl Ord for OutputWrapper<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.output_score().cmp(&other.output_score())
+    }
+}
+
+impl PartialOrd for OutputWrapper<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl Trie {
     pub fn new() -> Self {
         Trie {
-            root: TrieNode::new(),
+            root: TrieNode::new(None),
         }
     }
 
@@ -63,51 +166,64 @@ impl Trie {
         let mut current_node = &mut self.root;
 
         for char in word.chars() {
-            let mut next_node = current_node.children.entry(char).or_insert(TrieNode::new());
-            next_node.aggregate_score += score;
+            let mut next_node = current_node
+                .children
+                .entry(char)
+                .or_insert(TrieNode::new(Some(char)));
+            next_node.node_score = cmp::max(next_node.node_score, score);
             current_node = next_node;
         }
 
         // Set some properties on the last node so that it can be used as a representation of the
         // incoming `word`.
-        current_node.node_type = TrieNodeType::Final(word);
+        current_node.node_type = TrieNodeType::Final;
         current_node.word_score = Some(score);
     }
 
-    fn _search(&self, word: &String) -> Option<&TrieNode> {
-        let mut current_node = &self.root;
+    fn _search(&self, word: &String) -> Option<OutputWrapper> {
+        // NOTE: We do not include the root of the trie when returning results, as it only contains
+        // an empty char, plus references to its children.
+        let mut node = &self.root;
+        let mut nodes: Vec<&TrieNode> = vec![];
 
         for char in word.chars() {
-            match current_node.children.get(&char) {
-                Some(next_node) => current_node = next_node,
-                None => return None,
+            if let Some(next_node) = node.children.get(&char) {
+                nodes.push(next_node);
+                node = next_node;
+            } else {
+                return None;
             }
         }
-        Some(current_node)
+        Some(OutputWrapper { nodes })
     }
 
-    pub fn get_ranked_results(&self, prefix: String) -> Option<Vec<String>> {
-        let initial_children = match self._search(&prefix) {
-            Some(TrieNode {
-                children: local_children,
-                ..
-            }) => local_children,
-            _ => return None,
-        };
+    fn _get_ranked_results(&self, prefix: String, k: usize) -> Option<Vec<String>> {
+        // Our collection of "found" items is represented by `OutputWrapper`
+        // instances so that we can use a specific `Ord` trait implementation
+        // to order by the underlying word's score before returning.
+        let mut found_nodes: BinaryHeap<OutputWrapper> = BinaryHeap::new();
+        let mut max_word_score: i64 = 0;
 
-        // Our collection of "found" items is represented by `TrieNode` instances themselves so
-        // that we can order by the underlying word's score before returning.
-        let mut found_nodes: BinaryHeap<&TrieNode> = BinaryHeap::new();
+        let mut heap: BinaryHeap<QueueWrapper>;
 
-        // TODO: Can we switch this to a `VecDeque` for any kind of savings?
-        let mut heap: BinaryHeap<&TrieNode> = initial_children.values().collect();
+        if let Some(output_wrapper) = self._search(&prefix) {
+            heap = BinaryHeap::from(vec![output_wrapper.to_queue_wrapper()]);
+        } else {
+            return None;
+        }
 
-        while let Some(next_node) = heap.pop() {
-            if let TrieNodeType::Final(_) = &next_node.node_type {
-                found_nodes.push(next_node);
+        while let Some(queue_wrapper) = heap.pop() {
+            if (k != 0 && queue_wrapper.output_score() < max_word_score) && found_nodes.len() >= k {
+                break;
             }
-            for (_, v) in next_node.children.iter() {
-                heap.push(v);
+            if let Some(TrieNodeType::Final) = queue_wrapper.leaf_type() {
+                found_nodes.push(queue_wrapper.to_output_wrapper());
+                max_word_score = cmp::max(max_word_score, queue_wrapper.output_score());
+            }
+            if let Some(children) = queue_wrapper.children() {
+                for child in children {
+                    heap.push(queue_wrapper.new_with_node(child));
+                }
             }
         }
 
@@ -118,13 +234,18 @@ impl Trie {
             .into_sorted_vec()
             .iter()
             .rev()
-            .filter_map(|node| match &node.node_type {
-                TrieNodeType::Final(word) => Some(word.to_string()),
-                _ => None,
-            })
+            .map(|t| t.join())
             .collect();
 
         Some(result)
+    }
+
+    pub fn get_ranked_results(&self, prefix: String) -> Option<Vec<String>> {
+        self._get_ranked_results(prefix, 0)
+    }
+
+    pub fn get_k_ranked_results(&self, prefix: String, k: usize) -> Option<Vec<String>> {
+        self._get_ranked_results(prefix, k)
     }
 
     pub fn insert(&mut self, word: String) {
@@ -136,18 +257,19 @@ impl Trie {
     }
 
     pub fn search(&self, word: String) -> Option<String> {
-        match self._search(&word) {
-            Some(TrieNode {
-                node_type: TrieNodeType::Final(result),
-                ..
-            }) => Some(result.to_string()),
-            _ => None,
+        if let Some(output_wrapper) = self._search(&word) {
+            match output_wrapper.leaf_type() {
+                Some(TrieNodeType::Final) => Some(output_wrapper.join()),
+                _ => None,
+            }
+        } else {
+            return None;
         }
     }
 
     pub fn starts_with(&self, prefix: String) -> Option<String> {
         match self._search(&prefix) {
-            Some(_) => Some(prefix),
+            Some(output_wrapper) => Some(output_wrapper.join()),
             _ => None,
         }
     }
@@ -251,5 +373,27 @@ mod tests {
         let ranked_results = trie.get_ranked_results("Fo".to_string()).unwrap();
 
         assert_eq!(expected_words, ranked_results);
+    }
+
+    #[test]
+    fn get_k_ranked_results_returns_correct_count() {
+        let words_and_scores = vec![("Foreign", 10), ("For", 8), ("Foo", 0)];
+
+        // TODO: This seems like a silly way to construct this.
+        let expected_words: Vec<String> = words_and_scores
+            .iter()
+            .map(|(word, _)| word.to_string())
+            .collect::<Vec<String>>()[..2]
+            .to_vec();
+
+        let mut trie = Trie::new();
+
+        for (word, score) in words_and_scores.iter() {
+            trie.insert_with_score(word.to_string(), *score);
+        }
+
+        let ranked_results = trie.get_k_ranked_results("Fo".to_string(), 2).unwrap();
+
+        assert_eq!(expected_words[..2], ranked_results);
     }
 }
