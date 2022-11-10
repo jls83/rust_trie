@@ -71,6 +71,13 @@ impl<'a> OutputWrapper<'a> {
         }
         None
     }
+
+    fn join(&self) -> String {
+        self.nodes_previous
+            .iter()
+            .map(|n| n.value.unwrap_or_default())
+            .collect::<String>()
+    }
 }
 
 impl Ord for OutputWrapper<'_> {
@@ -110,17 +117,24 @@ impl Trie {
         current_node.word_score = Some(score);
     }
 
-    fn _search(&self, word: &String) -> Option<&TrieNode> {
-        let mut current_node = &self.root;
+    fn _search(&self, word: &String) -> Option<OutputWrapper> {
+        // NOTE: We do not include the root of the trie when returning results, as it only contains
+        // an empty char, plus references to its children.
+        let mut node = &self.root;
+        let mut nodes_previous: Vec<&TrieNode> = vec![];
 
         for char in word.chars() {
-            if let Some(next_node) = current_node.children.get(&char) {
-                current_node = next_node;
+            if let Some(next_node) = node.children.get(&char) {
+                nodes_previous.push(next_node);
+                node = next_node;
             } else {
                 return None;
             }
         }
-        Some(current_node)
+        Some(OutputWrapper {
+            node,
+            nodes_previous,
+        })
     }
 
     fn _get_ranked_results(&self, prefix: String, k: usize) -> Option<Vec<String>> {
@@ -132,7 +146,7 @@ impl Trie {
 
         let mut heap: BinaryHeap<QueueWrapper> = BinaryHeap::new();
 
-        if let Some(node) = self._search(&prefix) {
+        if let Some(OutputWrapper { node, .. }) = self._search(&prefix) {
             for child in node.children.values() {
                 heap.push(QueueWrapper {
                     node: child,
@@ -194,18 +208,19 @@ impl Trie {
     }
 
     pub fn search(&self, word: String) -> Option<String> {
-        match self._search(&word) {
-            Some(TrieNode {
-                node_type: TrieNodeType::Final(result),
-                ..
-            }) => Some(result.to_string()),
-            _ => None,
+        if let Some(output_wrapper) = self._search(&word) {
+            match output_wrapper.node.node_type {
+                TrieNodeType::Final(_) => Some(output_wrapper.join()),
+                _ => None,
+            }
+        } else {
+            return None;
         }
     }
 
     pub fn starts_with(&self, prefix: String) -> Option<String> {
         match self._search(&prefix) {
-            Some(_) => Some(prefix),
+            Some(output_wrapper) => Some(output_wrapper.join()),
             _ => None,
         }
     }
