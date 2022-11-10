@@ -215,7 +215,6 @@ impl Trie {
         }
 
         while let Some(queue_wrapper) = heap.pop() {
-            // TODO: Some(max_word_score) is weird...
             if (k != 0 && queue_wrapper.output_score() < max_word_score) && found_nodes.len() >= k {
                 break;
             }
