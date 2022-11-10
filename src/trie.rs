@@ -69,7 +69,7 @@ impl<'a> QueueWrapper<'a> {
         }
     }
 
-    fn fart(&self, node: &'a TrieNode) -> Self {
+    fn new_with_node(&self, node: &'a TrieNode) -> Self {
         let mut nodes_previous = self.nodes_previous.to_owned();
         nodes_previous.push(node);
         Self {
@@ -225,7 +225,7 @@ impl Trie {
             }
             if let Some(children) = queue_wrapper.children() {
                 for child in children {
-                    heap.push(queue_wrapper.fart(child));
+                    heap.push(queue_wrapper.new_with_node(child));
                 }
             }
         }
