@@ -58,20 +58,6 @@ struct OutputWrapper<'a> {
 }
 
 impl<'a> OutputWrapper<'a> {
-    fn wordify(&self, prefix: &String) -> Option<String> {
-        if let TrieNodeType::Final(_) = self.node.node_type {
-            return Some(
-                prefix.to_owned()
-                    + &self
-                        .nodes_previous
-                        .iter()
-                        .map(|n| n.value.unwrap())
-                        .collect::<String>(),
-            );
-        }
-        None
-    }
-
     fn join(&self) -> String {
         self.nodes_previous
             .iter()
@@ -185,7 +171,7 @@ impl Trie {
             .into_sorted_vec()
             .iter()
             .rev()
-            .map(|t| t.wordify(&prefix).unwrap())
+            .map(|t| prefix.to_owned() + &t.join())
             .collect();
 
         Some(result)
