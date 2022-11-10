@@ -48,12 +48,12 @@ pub struct Trie {
 
 #[derive(Clone, Eq, PartialEq)]
 struct QueueWrapper<'a> {
-    nodes_previous: Vec<&'a TrieNode>,
+    nodes: Vec<&'a TrieNode>,
 }
 
 impl<'a> QueueWrapper<'a> {
     fn last(&self) -> Option<&&'a TrieNode> {
-        self.nodes_previous.last()
+        self.nodes.last()
     }
 
     fn output_score(&self) -> i64 {
@@ -65,16 +65,14 @@ impl<'a> QueueWrapper<'a> {
 
     fn to_output_wrapper(&self) -> OutputWrapper<'a> {
         OutputWrapper {
-            nodes_previous: self.nodes_previous.to_owned(),
+            nodes: self.nodes.to_owned(),
         }
     }
 
     fn new_with_node(&self, node: &'a TrieNode) -> Self {
-        let mut nodes_previous = self.nodes_previous.to_owned();
-        nodes_previous.push(node);
-        Self {
-            nodes_previous,
-        }
+        let mut nodes = self.nodes.to_owned();
+        nodes.push(node);
+        Self { nodes }
     }
 
     fn children(&self) -> Option<Values<'a, char, TrieNode>> {
@@ -106,19 +104,19 @@ impl PartialOrd for QueueWrapper<'_> {
 
 #[derive(Clone, Eq, PartialEq)]
 struct OutputWrapper<'a> {
-    nodes_previous: Vec<&'a TrieNode>,
+    nodes: Vec<&'a TrieNode>,
 }
 
 impl<'a> OutputWrapper<'a> {
     fn join(&self) -> String {
-        self.nodes_previous
+        self.nodes
             .iter()
             .map(|n| n.value.unwrap_or_default())
             .collect::<String>()
     }
 
     fn last(&self) -> Option<&&'a TrieNode> {
-        self.nodes_previous.last()
+        self.nodes.last()
     }
 
     fn output_score(&self) -> i64 {
@@ -133,7 +131,7 @@ impl<'a> OutputWrapper<'a> {
 
     fn to_queue_wrapper(&self) -> QueueWrapper<'a> {
         QueueWrapper {
-            nodes_previous: self.nodes_previous.to_owned(),
+            nodes: self.nodes.to_owned(),
         }
     }
 
@@ -186,17 +184,17 @@ impl Trie {
         // NOTE: We do not include the root of the trie when returning results, as it only contains
         // an empty char, plus references to its children.
         let mut node = &self.root;
-        let mut nodes_previous: Vec<&TrieNode> = vec![];
+        let mut nodes: Vec<&TrieNode> = vec![];
 
         for char in word.chars() {
             if let Some(next_node) = node.children.get(&char) {
-                nodes_previous.push(next_node);
+                nodes.push(next_node);
                 node = next_node;
             } else {
                 return None;
             }
         }
-        Some(OutputWrapper { nodes_previous })
+        Some(OutputWrapper { nodes })
     }
 
     fn _get_ranked_results(&self, prefix: String, k: usize) -> Option<Vec<String>> {
