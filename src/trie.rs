@@ -47,7 +47,6 @@ pub struct Trie {
 
 #[derive(Clone, Eq, PartialEq)]
 struct QueueWrapper<'a> {
-    node: &'a TrieNode,
     nodes_previous: Vec<&'a TrieNode>,
 }
 
@@ -66,7 +65,6 @@ impl<'a> QueueWrapper<'a> {
 
     fn to_output_wrapper(&self) -> OutputWrapper<'a> {
         OutputWrapper {
-            node: self.node,
             nodes_previous: self.nodes_previous.to_owned(),
         }
     }
@@ -75,7 +73,6 @@ impl<'a> QueueWrapper<'a> {
         let mut nodes_previous = self.nodes_previous.to_owned();
         nodes_previous.push(node);
         Self {
-            node,
             nodes_previous,
         }
     }
@@ -95,7 +92,6 @@ impl PartialOrd for QueueWrapper<'_> {
 
 #[derive(Clone, Eq, PartialEq)]
 struct OutputWrapper<'a> {
-    node: &'a TrieNode,
     nodes_previous: Vec<&'a TrieNode>,
 }
 
@@ -124,7 +120,6 @@ impl<'a> OutputWrapper<'a> {
 
     fn to_queue_wrapper(&self) -> QueueWrapper<'a> {
         QueueWrapper {
-            node: self.node,
             nodes_previous: self.nodes_previous.to_owned(),
         }
     }
@@ -182,10 +177,7 @@ impl Trie {
                 return None;
             }
         }
-        Some(OutputWrapper {
-            node, // TODO: can remove?
-            nodes_previous,
-        })
+        Some(OutputWrapper { nodes_previous })
     }
 
     fn _get_ranked_results(&self, prefix: String, k: usize) -> Option<Vec<String>> {
