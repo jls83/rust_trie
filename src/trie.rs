@@ -161,7 +161,9 @@ impl Trie {
             return None;
         }
 
-        while let Some(QueueWrapper { node, mut nodes_previous }) = heap.pop() {
+        // TODO: breaking this out with an extra let to allow for some shenanigans
+        while let Some(queue_wrapper) = heap.pop() {
+            let QueueWrapper { node, mut nodes_previous } = queue_wrapper;
             // TODO: Some(max_word_score) is weird...
             if (k != 0 && node.word_score < Some(max_word_score)) && found_nodes.len() >= k {
                 break;
