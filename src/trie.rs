@@ -147,28 +147,19 @@ impl Trie {
         let mut heap: BinaryHeap<QueueWrapper>;
 
         if let Some(output_wrapper) = self._search(&prefix) {
-            heap = output_wrapper
-                .last()
-                .unwrap()
-                .children
-                .values()
-                .map(|node| QueueWrapper {
-                    node,
-                    nodes_previous: vec![],
-                })
-                .collect();
+            let OutputWrapper { node, nodes_previous } = output_wrapper;
+            heap = BinaryHeap::from(vec![QueueWrapper { node, nodes_previous }]);
         } else {
             return None;
         }
 
         // TODO: breaking this out with an extra let to allow for some shenanigans
         while let Some(queue_wrapper) = heap.pop() {
-            let QueueWrapper { node, mut nodes_previous } = queue_wrapper;
+            let QueueWrapper { node, nodes_previous } = queue_wrapper;
             // TODO: Some(max_word_score) is weird...
             if (k != 0 && node.word_score < Some(max_word_score)) && found_nodes.len() >= k {
                 break;
             }
-            nodes_previous.push(node);
             if let TrieNodeType::Final = &node.node_type {
                 found_nodes.push(OutputWrapper {
                     node,
@@ -177,9 +168,11 @@ impl Trie {
                 max_word_score = cmp::max(max_word_score, node.word_score.unwrap());
             }
             for child in node.children.values() {
+                let mut blah = nodes_previous.to_owned();
+                blah.push(child);
                 heap.push(QueueWrapper {
                     node: child,
-                    nodes_previous: nodes_previous.to_owned(),
+                    nodes_previous: blah,
                 });
             }
         }
@@ -191,7 +184,7 @@ impl Trie {
             .into_sorted_vec()
             .iter()
             .rev()
-            .map(|t| prefix.to_owned() + &t.join())
+            .map(|t| t.join())
             .collect();
 
         Some(result)
