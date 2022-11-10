@@ -249,7 +249,7 @@ impl Trie {
 
     pub fn search(&self, word: String) -> Option<String> {
         if let Some(output_wrapper) = self._search(&word) {
-            match output_wrapper.node.node_type {
+            match output_wrapper.last().unwrap().node_type {
                 TrieNodeType::Final => Some(output_wrapper.join()),
                 _ => None,
             }
