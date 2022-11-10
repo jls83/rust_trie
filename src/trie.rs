@@ -51,7 +51,6 @@ struct QueueWrapper<'a> {
     nodes_previous: Vec<&'a TrieNode>,
 }
 
-// TODO: Trait-ify
 impl<'a> QueueWrapper<'a> {
     fn last(&self) -> Option<&&'a TrieNode> {
         self.nodes_previous.last()
@@ -110,7 +109,6 @@ struct OutputWrapper<'a> {
     nodes_previous: Vec<&'a TrieNode>,
 }
 
-// TODO: Trait-ify
 impl<'a> OutputWrapper<'a> {
     fn join(&self) -> String {
         self.nodes_previous
@@ -147,7 +145,6 @@ impl<'a> OutputWrapper<'a> {
     }
 }
 
-// Trait-ify
 impl Ord for OutputWrapper<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.output_score().cmp(&other.output_score())
@@ -217,7 +214,6 @@ impl Trie {
             return None;
         }
 
-        // TODO: breaking this out with an extra let to allow for some shenanigans
         while let Some(queue_wrapper) = heap.pop() {
             // TODO: Some(max_word_score) is weird...
             if (k != 0 && queue_wrapper.output_score() < max_word_score) && found_nodes.len() >= k {
