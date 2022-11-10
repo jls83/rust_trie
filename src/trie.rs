@@ -65,8 +65,12 @@ impl<'a> OutputWrapper<'a> {
             .collect::<String>()
     }
 
+    fn last(&self) -> Option<&&'a TrieNode> {
+        self.nodes_previous.last()
+    }
+
     fn output_score(&self) -> i64 {
-        match self.nodes_previous.last() {
+        match self.last() {
             Some(node) => match node.word_score {
                 Some(score) => score,
                 _ => 0,
@@ -142,8 +146,8 @@ impl Trie {
 
         let mut heap: BinaryHeap<QueueWrapper> = BinaryHeap::new();
 
-        if let Some(OutputWrapper { node, .. }) = self._search(&prefix) {
-            for child in node.children.values() {
+        if let Some(output_wrapper) = self._search(&prefix) {
+            for child in (output_wrapper.last().unwrap()).children.values() {
                 heap.push(QueueWrapper {
                     node: child,
                     nodes_previous: vec![],
