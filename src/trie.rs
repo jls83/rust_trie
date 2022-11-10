@@ -45,10 +45,52 @@ pub struct Trie {
     root: TrieNode,
 }
 
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Eq, PartialEq)]
 struct QueueWrapper<'a> {
     node: &'a TrieNode,
     nodes_previous: Vec<&'a TrieNode>,
+}
+
+// TODO: Trait-ify
+impl<'a> QueueWrapper<'a> {
+    fn last(&self) -> Option<&&'a TrieNode> {
+        self.nodes_previous.last()
+    }
+
+    fn output_score(&self) -> i64 {
+        match self.last() {
+            Some(node) => node.node_score,
+            _ => 0,
+        }
+    }
+
+    fn to_output_wrapper(&self) -> OutputWrapper<'a> {
+        OutputWrapper {
+            node: self.node,
+            nodes_previous: self.nodes_previous.to_owned(),
+        }
+    }
+
+    fn fart(&self, node: &'a TrieNode) -> Self {
+        let mut nodes_previous = self.nodes_previous.to_owned();
+        nodes_previous.push(node);
+        Self {
+            node,
+            nodes_previous,
+        }
+    }
+}
+
+impl Ord for QueueWrapper<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.output_score().cmp(&other.output_score())
+    }
+}
+
+impl PartialOrd for QueueWrapper<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -57,6 +99,7 @@ struct OutputWrapper<'a> {
     nodes_previous: Vec<&'a TrieNode>,
 }
 
+// TODO: Trait-ify
 impl<'a> OutputWrapper<'a> {
     fn join(&self) -> String {
         self.nodes_previous
@@ -78,8 +121,16 @@ impl<'a> OutputWrapper<'a> {
             _ => 0,
         }
     }
+
+    fn to_queue_wrapper(&self) -> QueueWrapper<'a> {
+        QueueWrapper {
+            node: self.node,
+            nodes_previous: self.nodes_previous.to_owned(),
+        }
+    }
 }
 
+// Trait-ify
 impl Ord for OutputWrapper<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.output_score().cmp(&other.output_score())
@@ -132,7 +183,7 @@ impl Trie {
             }
         }
         Some(OutputWrapper {
-            node,
+            node, // TODO: can remove?
             nodes_previous,
         })
     }
@@ -147,33 +198,23 @@ impl Trie {
         let mut heap: BinaryHeap<QueueWrapper>;
 
         if let Some(output_wrapper) = self._search(&prefix) {
-            let OutputWrapper { node, nodes_previous } = output_wrapper;
-            heap = BinaryHeap::from(vec![QueueWrapper { node, nodes_previous }]);
+            heap = BinaryHeap::from(vec![output_wrapper.to_queue_wrapper()]);
         } else {
             return None;
         }
 
         // TODO: breaking this out with an extra let to allow for some shenanigans
         while let Some(queue_wrapper) = heap.pop() {
-            let QueueWrapper { node, nodes_previous } = queue_wrapper;
             // TODO: Some(max_word_score) is weird...
-            if (k != 0 && node.word_score < Some(max_word_score)) && found_nodes.len() >= k {
+            if (k != 0 && queue_wrapper.output_score() < max_word_score) && found_nodes.len() >= k {
                 break;
             }
-            if let TrieNodeType::Final = &node.node_type {
-                found_nodes.push(OutputWrapper {
-                    node,
-                    nodes_previous: nodes_previous.to_owned(),
-                });
-                max_word_score = cmp::max(max_word_score, node.word_score.unwrap());
+            if let TrieNodeType::Final = queue_wrapper.last().unwrap().node_type {
+                found_nodes.push(queue_wrapper.to_output_wrapper());
+                max_word_score = cmp::max(max_word_score, queue_wrapper.output_score());
             }
-            for child in node.children.values() {
-                let mut blah = nodes_previous.to_owned();
-                blah.push(child);
-                heap.push(QueueWrapper {
-                    node: child,
-                    nodes_previous: blah,
-                });
+            for child in queue_wrapper.last().unwrap().children.values() {
+                heap.push(queue_wrapper.fart(child));
             }
         }
 
