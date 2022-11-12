@@ -1,158 +1,12 @@
 use std::cmp;
-use std::cmp::Ordering;
-use std::collections::hash_map::Values;
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::BinaryHeap;
 
-#[derive(Copy, Clone, Eq, PartialEq)]
-enum TrieNodeType {
-    Final,
-    Intermediate,
-}
-
-#[derive(Clone, Eq, PartialEq)]
-struct TrieNode {
-    value: Option<char>,
-    children: HashMap<char, TrieNode>,
-    node_type: TrieNodeType,
-    word_score: Option<i64>,
-    node_score: i64,
-}
-
-impl TrieNode {
-    fn new(value: Option<char>) -> Self {
-        TrieNode {
-            value,
-            children: HashMap::new(),
-            node_type: TrieNodeType::Intermediate,
-            word_score: None,
-            node_score: 0,
-        }
-    }
-}
-
-impl Ord for TrieNode {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.node_score.cmp(&other.node_score)
-    }
-}
-
-impl PartialOrd for TrieNode {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
+use crate::helpers::output_wrapper::OutputWrapper;
+use crate::helpers::queue_wrapper::QueueWrapper;
+use crate::trie_node::{TrieNode, TrieNodeType};
 
 pub struct Trie {
     root: TrieNode,
-}
-
-#[derive(Clone, Eq, PartialEq)]
-struct QueueWrapper<'a> {
-    nodes: Vec<&'a TrieNode>,
-}
-
-impl<'a> QueueWrapper<'a> {
-    fn last(&self) -> Option<&&'a TrieNode> {
-        self.nodes.last()
-    }
-
-    fn output_score(&self) -> i64 {
-        match self.last() {
-            Some(node) => node.node_score,
-            _ => 0,
-        }
-    }
-
-    fn to_output_wrapper(&self) -> OutputWrapper<'a> {
-        OutputWrapper {
-            nodes: self.nodes.to_owned(),
-        }
-    }
-
-    fn new_with_node(&self, node: &'a TrieNode) -> Self {
-        let mut nodes = self.nodes.to_owned();
-        nodes.push(node);
-        Self { nodes }
-    }
-
-    fn children(&self) -> Option<Values<'a, char, TrieNode>> {
-        match self.last() {
-            Some(node) => Some(node.children.values()),
-            _ => None,
-        }
-    }
-
-    fn leaf_type(&self) -> Option<TrieNodeType> {
-        match self.last() {
-            Some(node) => Some(node.node_type),
-            _ => None,
-        }
-    }
-}
-
-impl Ord for QueueWrapper<'_> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.output_score().cmp(&other.output_score())
-    }
-}
-
-impl PartialOrd for QueueWrapper<'_> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-#[derive(Clone, Eq, PartialEq)]
-struct OutputWrapper<'a> {
-    nodes: Vec<&'a TrieNode>,
-}
-
-impl<'a> OutputWrapper<'a> {
-    fn join(&self) -> String {
-        self.nodes
-            .iter()
-            .map(|n| n.value.unwrap_or_default())
-            .collect::<String>()
-    }
-
-    fn last(&self) -> Option<&&'a TrieNode> {
-        self.nodes.last()
-    }
-
-    fn output_score(&self) -> i64 {
-        match self.last() {
-            Some(node) => match node.word_score {
-                Some(score) => score,
-                _ => 0,
-            },
-            _ => 0,
-        }
-    }
-
-    fn to_queue_wrapper(&self) -> QueueWrapper<'a> {
-        QueueWrapper {
-            nodes: self.nodes.to_owned(),
-        }
-    }
-
-    fn leaf_type(&self) -> Option<TrieNodeType> {
-        match self.last() {
-            Some(node) => Some(node.node_type),
-            _ => None,
-        }
-    }
-}
-
-impl Ord for OutputWrapper<'_> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.output_score().cmp(&other.output_score())
-    }
-}
-
-impl PartialOrd for OutputWrapper<'_> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
 }
 
 impl Trie {
@@ -277,7 +131,7 @@ impl Trie {
 
 #[cfg(test)]
 mod tests {
-    use crate::Trie;
+    use crate::trie::Trie;
 
     #[test]
     fn can_search_for_term() {

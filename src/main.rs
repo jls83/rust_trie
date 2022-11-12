@@ -1,6 +1,4 @@
-use crate::trie::Trie;
-
-pub mod trie;
+use rust_trie::trie::Trie;
 
 fn main() {
     let mut trie = Trie::new();
