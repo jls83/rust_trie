@@ -39,4 +39,3 @@ impl PartialOrd for TrieNode {
         Some(self.cmp(other))
     }
 }
-

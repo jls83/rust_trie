@@ -1,9 +1,9 @@
 use std::cmp;
 use std::collections::BinaryHeap;
 
-use crate::trie_node::{TrieNode, TrieNodeType};
 use crate::helpers::output_wrapper::OutputWrapper;
 use crate::helpers::queue_wrapper::QueueWrapper;
+use crate::trie_node::{TrieNode, TrieNodeType};
 
 pub struct Trie {
     root: TrieNode,

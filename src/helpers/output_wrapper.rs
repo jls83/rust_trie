@@ -55,4 +55,3 @@ impl PartialOrd for OutputWrapper<'_> {
         Some(self.cmp(other))
     }
 }
-

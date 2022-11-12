@@ -59,4 +59,3 @@ impl PartialOrd for QueueWrapper<'_> {
         Some(self.cmp(other))
     }
 }
-
