@@ -1,16 +1,29 @@
+use std::{thread, sync::{Arc, RwLock}};
+
 use rust_trie::trie::Trie;
 
 fn main() {
-    let mut trie = Trie::new();
+    let mut trie = Arc::new(RwLock::new(Trie::new()));
 
     // Insert a few values with a weight; higher values show higher in the results.
-    trie.insert_with_score("Foo".to_string(), 0);
-    trie.insert_with_score("For".to_string(), 8);
-    trie.insert_with_score("Foreign".to_string(), 10);
+    let vals = vec![
+        ("Foo".to_string(), 0),
+        ("For".to_string(), 8),
+        ("Foreign".to_string(), 10),
+        // Add some values that won't match just to be sure :)
+        ("Bar".to_string(), 0),
+        ("Baz".to_string(), 0),
+    ];
 
-    // Add some values that won't match just to be sure :)
-    trie.insert_with_score("Bar".to_string(), 0);
-    trie.insert_with_score("Baz".to_string(), 0);
+    // for (i, (val, score)) in vals.iter().enumerate() {
+    let handles: Vec<_> =  vals.into_iter()
+        .map(|(val, score)| {
+            thread::spawn(move || {
+                let mut new_trie = Arc::clone(&trie);
+                (*new_trie).write().unwrap().insert_with_score(val, score);
+            });
+        })
+        .collect();
 
     // Should print values in the expected order ("Foreign", "For", "Foo").
     for result in trie.get_ranked_results("Fo".to_string()).unwrap().iter() {

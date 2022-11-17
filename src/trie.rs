@@ -5,6 +5,7 @@ use crate::helpers::output_wrapper::OutputWrapper;
 use crate::helpers::queue_wrapper::QueueWrapper;
 use crate::trie_node::{TrieNode, TrieNodeType};
 
+#[derive(Clone)]
 pub struct Trie {
     root: TrieNode,
 }
