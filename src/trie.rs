@@ -1,5 +1,6 @@
 use std::cmp;
 use std::collections::BinaryHeap;
+use std::sync::{Arc, RwLock};
 
 use crate::helpers::output_wrapper::OutputWrapper;
 use crate::helpers::queue_wrapper::QueueWrapper;
@@ -8,17 +9,27 @@ use crate::trie_node::{TrieNode, TrieNodeType};
 #[derive(Clone)]
 pub struct Trie {
     root: TrieNode,
+    root_index: usize,
+    arena: Arc<RwLock<Vec<Arc<RwLock<TrieNode>>>>>,
 }
 
 impl Trie {
     pub fn new() -> Self {
         Trie {
             root: TrieNode::new(None),
+            root_index: 0,
+            arena: Arc::new(RwLock::new(vec![Arc::new(RwLock::new(TrieNode::new(
+                None,
+            )))])),
         }
     }
 
     fn _insert(&mut self, word: String, score: i64) {
         let mut current_node = &mut self.root;
+
+        let mut arena = self.arena.write().expect("RwLock poisoned");
+
+        let mut current_node_index: usize = 0;
 
         for char in word.chars() {
             let mut next_node = current_node
@@ -27,12 +38,36 @@ impl Trie {
                 .or_insert(TrieNode::new(Some(char)));
             next_node.node_score = cmp::max(next_node.node_score, score);
             current_node = next_node;
+
+            if let Some(next_idx) = arena
+                .get(current_node_index)
+                .unwrap()
+                .read()
+                .ok()
+                .unwrap()
+                .children_new
+                .get(&char)
+            {
+                current_node_index = *next_idx;
+                continue;
+            }
+            let next_idx = arena.len();
+            arena.push(Arc::new(RwLock::new(TrieNode::new(Some(char)))));
+
+            let mut node_to_mod = arena[current_node_index].write().unwrap();
+            node_to_mod.children_new.insert(char, next_idx);
+
+            current_node_index = next_idx;
         }
 
         // Set some properties on the last node so that it can be used as a representation of the
         // incoming `word`.
         current_node.node_type = TrieNodeType::Final;
         current_node.word_score = Some(score);
+
+        let mut node_to_mod = arena[current_node_index].write().unwrap();
+        node_to_mod.node_type = TrieNodeType::Final;
+        node_to_mod.word_score = Some(score);
     }
 
     fn _search(&self, word: &String) -> Option<OutputWrapper> {
@@ -41,6 +76,10 @@ impl Trie {
         let mut node = &self.root;
         let mut nodes: Vec<&TrieNode> = vec![];
 
+        let asdf = self.arena.read().unwrap();
+        let mut node_new = asdf.get(self.root_index).unwrap();
+        let mut node_idxs: Vec<usize> = vec![];
+
         for char in word.chars() {
             if let Some(next_node) = node.children.get(&char) {
                 nodes.push(next_node);
@@ -48,7 +87,20 @@ impl Trie {
             } else {
                 return None;
             }
+
+            if let Some(next_idx) = node_new.read().unwrap().children_new.get(&char) {
+                node_idxs.push(*next_idx);
+                node_new = asdf.get(*next_idx).unwrap();
+            }
         }
+
+        let foo: String = node_idxs
+            .iter()
+            .map(|idx| asdf[*idx].read().unwrap().value.unwrap())
+            .collect();
+
+        println!("WHAT {}", foo);
+
         Some(OutputWrapper { nodes })
     }
 
