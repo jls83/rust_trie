@@ -3,7 +3,7 @@ use std::{thread, sync::{Arc, RwLock}};
 use rust_trie::trie::Trie;
 
 fn main() {
-    let mut trie = Arc::new(RwLock::new(Trie::new()));
+    let trie = Arc::new(RwLock::new(Trie::new()));
 
     // Insert a few values with a weight; higher values show higher in the results.
     let vals = vec![
@@ -15,15 +15,20 @@ fn main() {
         ("Baz".to_string(), 0),
     ];
 
-    // for (i, (val, score)) in vals.iter().enumerate() {
     let handles: Vec<_> =  vals.into_iter()
         .map(|(val, score)| {
+            let trie = Arc::clone(&trie);
             thread::spawn(move || {
-                let mut new_trie = Arc::clone(&trie);
-                (*new_trie).write().unwrap().insert_with_score(val, score);
-            });
+                (*trie).write().unwrap().insert_with_score(val, score);
+            })
         })
         .collect();
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    let trie = trie.read().unwrap();
 
     // Should print values in the expected order ("Foreign", "For", "Foo").
     for result in trie.get_ranked_results("Fo".to_string()).unwrap().iter() {
