@@ -1,4 +1,7 @@
-use std::{thread, sync::{Arc, RwLock}};
+use std::{
+    sync::{Arc, RwLock},
+    thread,
+};
 
 use rust_trie::trie::Trie;
 
@@ -15,7 +18,8 @@ fn main() {
         ("Baz".to_string(), 0),
     ];
 
-    let handles: Vec<_> =  vals.into_iter()
+    let handles: Vec<_> = vals
+        .into_iter()
         .map(|(val, score)| {
             let trie = Arc::clone(&trie);
             thread::spawn(move || {
