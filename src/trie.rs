@@ -32,6 +32,7 @@ impl Trie {
         // incoming `word`.
         current_node.node_type = TrieNodeType::Final;
         current_node.word_score = Some(score);
+        current_node.word = Some(word);
     }
 
     fn _search(&self, word: &String) -> Option<OutputWrapper> {

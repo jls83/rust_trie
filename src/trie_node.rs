@@ -14,6 +14,7 @@ pub struct TrieNode {
     pub node_type: TrieNodeType,
     pub word_score: Option<i64>,
     pub node_score: i64,
+    pub word: Option<String>,
 }
 
 impl TrieNode {
@@ -24,6 +25,7 @@ impl TrieNode {
             node_type: TrieNodeType::Intermediate,
             word_score: None,
             node_score: 0,
+            word: None
         }
     }
 }
