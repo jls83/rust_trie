@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use crate::helpers::queue_wrapper::QueueWrapper;
-use crate::trie_node::{TrieNode, TrieNodeType};
+use crate::trie_node::TrieNode;
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct OutputWrapper<'a> {
@@ -33,13 +33,6 @@ impl<'a> OutputWrapper<'a> {
     pub fn to_queue_wrapper(&self) -> QueueWrapper<'a> {
         QueueWrapper {
             nodes: self.nodes.to_owned(),
-        }
-    }
-
-    pub fn leaf_type(&self) -> Option<TrieNodeType> {
-        match self.last() {
-            Some(node) => Some(node.node_type),
-            _ => None,
         }
     }
 }

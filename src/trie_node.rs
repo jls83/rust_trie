@@ -25,7 +25,7 @@ impl TrieNode {
             node_type: TrieNodeType::Intermediate,
             word_score: None,
             node_score: 0,
-            word: None
+            word: None,
         }
     }
 }

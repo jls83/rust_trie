@@ -113,8 +113,12 @@ impl Trie {
 
     pub fn search(&self, word: String) -> Option<String> {
         if let Some(output_wrapper) = self._search(&word) {
-            match output_wrapper.leaf_type() {
-                Some(TrieNodeType::Final) => Some(output_wrapper.join()),
+            match output_wrapper.last() {
+                Some(TrieNode {
+                    node_type: TrieNodeType::Final,
+                    word: Some(word),
+                    ..
+                }) => Some(word.to_owned()),
                 _ => None,
             }
         } else {
